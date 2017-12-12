@@ -1,0 +1,514 @@
+<html>
+
+<head>
+	
+	<title>I Want to Believe</title>
+	
+	<link rel="stylesheet" href="./leaflet/leaflet.css"/>
+	<link rel="stylesheet" href="./dist/MarkerCluster.css" />
+	<link rel="stylesheet" href="./dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="styles.css" />
+	
+	<script src="./leaflet/leaflet.js"></script>
+	<script src="./dist/leaflet.markercluster-src.js"></script>
+	<script src="./data/cleaned_withSentenTreeFields.js"></script>
+</head>
+
+<body>
+
+	<script src="//unpkg.com/candela/dist/candela.min.js"></script>
+
+        <div id="contentContainer">
+        <div id="mapContainer">
+            <div id="progress"><div id="progress-bar"></div></div>
+            <div id="map"></div>
+        </div>
+        <div id="sentenTreeContainer"></div>
+    </div>
+        
+
+        
+        <div id="controls">
+
+          <div id="buttonContainer">
+          <button class="controlButtons" onclick="updateFilters();">Apply Filters</button>
+          <button class="controlButtons" style="display:block;" onclick="loadSentenTree();">Load SentenTree</button>
+          <button class="controlButtons" style="display:block;" onclick="cloneSentenTree();">Clone SentenTree</button>
+          </div>
+
+          <br />
+
+          <div id="shapeContainer">
+          <h3>Shape:</h3>
+        <form id="shapeSelector">
+          
+          <div class="col-shape">
+            <label><input type="checkbox" id="ckbCheckAll" value="all">Select All</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="changing">Changing</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="chevron">Chevron</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="cigar">Cigar</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="circle">Circle</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="cylinder">Cylinder</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="diamond">Diamond</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="disk">Disk</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="egg">Egg</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="fireball">Fireball</label><br>
+          </div><div class="col-shape">
+            <label><input type="checkbox" class="checkBoxClass" value="flash">Formation</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="light">Light</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="oval">Oval</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="rectangle">Rectangle</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="sphere">Sphere</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="teardrop">Teardrop</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="triangle">Triangle</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="other">Other</label><br>
+            <label><input type="checkbox" class="checkBoxClass" value="unspecified">Unspecified</label><br>
+          </div>
+        </form>
+    </div>
+
+    <div id="keywordContainer">
+        	<h3>Filter by keyword/phrase (comma-separated):</h3>
+          <form id="keywordSearch">
+              <input id="keywords" type="text" >
+          </form>
+      </div>
+     
+
+          <div id="dateContainer">
+          <h3>Filter by Date</h3>
+          <form id="dateSelector">
+              <div class="dateSelectorBox">
+              <span style="color:#5f7cad; font-weight:bold;">Years (YYYY)</span>
+              <br />
+              <label>From:&nbsp;&nbsp;<input class="dateField" id="fromYear" type="text"></label>
+              <br />
+              <label>To:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input class="dateField" id="toYear" type="text"></label>
+              </div>
+              <div class="dateSelectorBox">
+              <span style="color:#5f7cad; font-weight:bold;">Months (MM)</span>
+              <br />
+              <label>From:&nbsp;&nbsp;<input class="dateField" id="fromMonth" type="text"></label>
+              <br />
+              <label>To:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input class="dateField" id="toMonth" type="text"></label>
+              </div>
+              <div class="dateSelectorBox">
+              <span style="color:#5f7cad; font-weight:bold;">Days (DD)</span>
+              <br />
+              <label>From:&nbsp;&nbsp;<input class="dateField" id="fromDay" type="text"></label>
+              <br />
+              <label>To:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input class="dateField" id="toDay" type="text"></label>
+          </div>
+          </form>
+      </div>
+
+      		<div id="timeContainer">
+          <h3>Filter by Time (24-Hour Clock)</h3>
+          <form id="timeSelector">
+              <label>From (HH:MM):&nbsp;&nbsp;<input class="dateField" id="fromTime" type="text"></label>
+              <br />
+              <label>To (HH:MM):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input class="dateField" id="toTime" type="text"></label>
+          </form>
+      </div>
+
+      <div id="durationContainer">
+          <h3>Filter by Duration (seconds)</h3>
+          <form id="durationSelector">
+              <label>Minimum:  <input class="dateField" id="minDuration" type="text"></label>
+              <br />
+              <label>Maximum:  <input class="dateField" id="maxDuration" type="text"></label>
+          </form>
+         </div>
+
+      </div>
+
+      <div id="sentenTreeContainer"></div>     
+
+	<script type="text/javascript">
+
+		// grab shape filter boxes
+		var shapeForm = document.getElementById('shapeSelector');
+		var selectedShapes = shapeForm.getElementsByTagName('input');
+
+		var reportsByShape = [];
+		
+		// generate map frame
+		var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Points &copy 2012 LINZ'
+		}),
+			latlng = L.latLng([39.8283,-98.5795]);
+
+		var map = L.map('map', {center: latlng, zoom: 3, layers: [tiles]});	
+		
+		// initialize map boundary variables
+		var northBound = map.getBounds().getNorth();
+		var eastBound = map.getBounds().getEast();
+		var southBound = map.getBounds().getSouth();
+		var westBound = map.getBounds().getWest();
+
+		// initialize date ranges
+		var dateRanges = [0,3000,1,12,1,31];
+		
+		// initialize report variables
+		var allReports = reportLocation;
+		var displayedReports = [];
+		var inFrame = [];
+
+		var sentenTreeCloneCount = 0;
+
+		var progress = document.getElementById('progress');
+		var progressBar = document.getElementById('progress-bar');
+
+		function updateProgressBar(processed, total, elapsed, layersArray) {
+			if (elapsed > 1000) {
+				// if it takes more than a second to load, display the progress bar:
+				progress.style.display = 'block';
+				progressBar.style.width = Math.round(processed/total*100) + '%';
+			}
+
+			if (processed === total) {
+				// all markers processed - hide the progress bar:
+				progress.style.display = 'none';
+			}
+		}
+
+		// create marker group
+		var markers = L.markerClusterGroup({ chunkedLoading: true, chunkProgress: updateProgressBar });
+
+		function submitHandler(event) {
+			event.preventDefault();
+			updateFilters();
+		}
+
+		function decodeCommentString(commentString) {
+			var txt = document.createElement("textarea");
+			txt.innerHTML = commentString;
+
+			return txt.value;
+		}
+		
+		// filter visible results for sententree
+		function updateBounds() {
+			northBound = map.getBounds().getNorth();
+			eastBound = map.getBounds().getEast();
+			southBound = map.getBounds().getSouth();
+			westBound = map.getBounds().getWest();
+		}
+
+		function filterOnBounds() {
+			updateBounds();
+
+			inFrame = [];
+
+			for (var i=0; i<displayedReports.length; i++) {
+				var line = displayedReports[i];
+				
+				if ((line[5]<=northBound)&&(line[5]>=southBound)&&(line[6]<=eastBound)&&(line[6]>=westBound)) {
+					inFrame.push(line);
+				}
+			}
+
+		}
+
+		// update filter conditions and apply
+		function updateFilters() {
+			var shapes = shapeFilter();
+			var keywords = keywordFilter();
+			var selectedDates = dateFilter();
+			var times = timeFilter();
+			var durations = durationFilter();
+			applyFilters(keywords,shapes,selectedDates,times,durations);
+		}
+
+
+		function applyFilters(keywordSet,shapeSet,dateSet,timeSet,durationSet) {
+			
+			markers.clearLayers();
+			markers = L.markerClusterGroup({ chunkedLoading: true, chunkProgress: updateProgressBar });
+			var filteredResults = [];
+
+			for (var i=0; i<allReports.length; i++) {
+				
+				var row = allReports[i];
+				var commentString = row[7].toLowerCase();
+
+				var year = parseInt(row[1]);
+				var month = parseInt(row[2]);
+				var day = parseInt(row[3]);
+
+				var hour = parseInt(row[10]);
+				var minute = parseInt(row[11]);
+
+				var reportDuration = parseInt(row[8]);
+				
+				// apply keyword filter
+				var keywordPassed = false;
+
+				if (!keywordSet.length) {
+					keywordPassed = true;
+				}
+				else {
+					for (var k=0; k<keywordSet.length; k++) {
+						if (commentString.search(keywordSet[k])!==-1) {
+							keywordPassed = true;
+							break;
+						}
+					}
+				}
+				
+				if (!keywordPassed) {
+						continue;
+				}
+
+				// apply shape filter
+				var shapePassed = false;
+					
+				for (var s=0; s<shapeSet.length; s++) {
+					if (row[4] == shapeSet[s]) {
+						shapePassed = true;
+						break;
+					}
+				}
+				if (!shapePassed) {
+					continue;
+				}
+				
+				// apply time filter
+				if (!(((year>=dateSet[0])&&(year<=dateSet[1])) && ((month>=dateSet[2])&&(month<=dateSet[3])) && ((day>=dateSet[4])&&(day<=dateSet[5])))) {
+					continue;
+				}
+
+				if (!((hour>=timeSet[0])&&(hour<=timeSet[1])&&(minute>=timeSet[2])&&(minute<=timeSet[3]))) {
+					continue;
+				}
+
+				if (!((reportDuration>=durationSet[0])&&(reportDuration<=durationSet[1]))) {
+					continue;
+				}
+
+				filteredResults.push(row);
+
+				var detailView = row[7]
+				var marker = L.marker(new L.LatLng(row[5], row[6]), { title: detailView });
+
+				marker.bindPopup(detailView);
+				markers.addLayer(marker);
+
+			}
+			
+			displayedReports = filteredResults;
+			map.addLayer(markers);
+
+		}
+
+		// toggle shape selector checkboxes
+		function toggleAll() {
+			if (this.value == 'all' && this.checked) {
+				for (i=1; i < selectedShapes.length; i++) {
+					selectedShapes[i].checked = true;
+				}
+			}
+			else if (this.value == 'all' && !(this.checked)) {
+				for (i=1; i < selectedShapes.length; i++) {
+					selectedShapes[i].checked = false;
+				}	
+			}
+			else if (this.value != 'all') {
+				selectedShapes[0].checked = false;
+			}
+		}
+
+		// filters
+		function keywordFilter() {
+			var contents = document.getElementById('keywords').value.toLowerCase();
+
+			if (contents != '') {
+				var kwArray = contents.split(',');
+			}
+			else {
+				kwArray = [];
+			}
+
+			return kwArray;
+		}
+
+		function shapeFilter() {		
+
+			var displayShapes = [];
+
+			for (var i=1; i<selectedShapes.length; i++) {
+				if (selectedShapes[i].checked) {
+					displayShapes.push(selectedShapes[i].value);
+				}
+			}
+
+			return displayShapes;
+			
+		}
+
+		function dateFilter() {
+			var fromYear = document.getElementById('fromYear').value;
+			var toYear = document.getElementById('toYear').value;
+			var fromMonth = document.getElementById('fromMonth').value;
+			var toMonth = document.getElementById('toMonth').value;
+			var fromDay = document.getElementById('fromDay').value;
+			var toDay = document.getElementById('toDay').value;
+
+			var dateStrings = [fromYear,toYear,fromMonth,toMonth,fromDay,toDay];
+			var dateFields = [];
+
+			for (i=0;i<dateStrings.length;i++) {
+				if (!dateStrings[i]) {
+					dateFields.push(dateRanges[i]);
+				}
+				else {
+					dateFields.push(parseInt(dateStrings[i]));
+				}
+			}
+
+			return dateFields
+		}
+
+		function timeFilter() {
+			var fromTime = document.getElementById('fromTime').value;
+			var toTime = document.getElementById('toTime').value;
+
+			if (fromTime) {
+				var splitFromTime = fromTime.split(':');
+				var fromHour = parseInt(splitFromTime[0]);
+				var fromMin = parseInt(splitFromTime[1]);
+			}
+			else {
+				var fromHour = 0;
+				var fromMin = 0;
+			}
+			if (toTime) {
+				var splitToTime = toTime.split(':');
+				var toHour = parseInt(splitToTime[0]);
+				var toMin = parseInt(splitToTime[1]);
+			}
+			else {
+				var toHour = 24;
+				var toMin = 60;
+			}
+
+			var selectedTimes = [fromHour,toHour,fromMin,toMin];
+			
+			return selectedTimes;
+		}
+
+		function durationFilter() {
+			var minDuration = document.getElementById('minDuration').value;
+			var maxDuration = document.getElementById('maxDuration').value;
+
+			var durationRange = [];
+
+			if (minDuration) {
+				durationRange.push(parseInt(minDuration));
+			}
+			else {
+				durationRange.push(0);
+			}
+			if (maxDuration) {
+				durationRange.push(parseInt(maxDuration));
+			}
+			else {
+				durationRange.push(1000000000000);
+			}
+
+			return durationRange;
+		}
+
+		// generate sententree output frame
+		function loadSentenTree() {
+
+			filterOnBounds();
+
+			if (document.contains(document.getElementById('sentenTree'))) {
+				document.getElementById('sentenTree').remove();
+			}
+
+			var el = document.createElement('sentenTree');
+			el.id = 'sentenTree';
+			el.style.display = 'block';
+			el.style.float = 'left';
+
+			document.getElementById('sentenTreeContainer').appendChild(el);
+
+			var sentenTreeData = [];
+
+			for (i=0; i < inFrame.length; i++) {
+				var b = inFrame[i];
+				var comment = decodeCommentString(b[9]);
+				var sentenTreeRow = {id: i, count: 1, text: comment};
+				sentenTreeData.push(sentenTreeRow);
+			}
+
+			var vis = new candela.components.SentenTree(el, { 
+				data: sentenTreeData,
+				graphs: 1
+				});
+
+			vis.render();
+		
+		}
+		
+		// copy current sententree output to separate field
+		function cloneSentenTree() {
+			var originalSentenTree = document.getElementById('sentenTree');
+			if (!originalSentenTree) {
+				return;
+			}
+			
+			var cloneContainer = document.createElement('div');
+			cloneContainer.id = 'cloneContainer' + ++sentenTreeCloneCount;
+			cloneContainer.style.display = 'block';
+			cloneContainer.style.float = 'left';
+			cloneContainer.style.width = '45%';
+			cloneContainer.style.padding = '10px';
+
+			var closeClone = document.createElement('button');
+			closeClone.style.width = '20px';
+			closeClone.style.height = '20px';
+			closeClone.style.border = 'none';
+			closeClone.backgroundColor = 'white';
+			closeClone.innerHTML = '&#10006;';
+			closeClone.onclick = function() {clearSentenTreeClone(cloneContainer.id)};
+			cloneContainer.appendChild(closeClone);
+			
+			var sentenTreeClone = originalSentenTree.cloneNode(true);
+			sentenTreeClone.id = 'sentenTreeClone' + sentenTreeCloneCount;
+			cloneContainer.appendChild(sentenTreeClone);
+
+			document.getElementById('sentenTreeContainer').appendChild(cloneContainer);
+		}
+
+		function clearSentenTreeClone(clone) {
+			document.getElementById(clone).remove();
+		}
+
+		function attachHandlers() {
+			for (var i=0; i < selectedShapes.length; i++) {
+				selectedShapes[i].onclick = toggleAll;
+			}
+
+			var keywordSubmitForm = document.getElementById('keywordSearch');
+			var dateSubmitForm = document.getElementById('dateSelector');
+			var timeSubmitForm = document.getElementById('timeSelector');
+			var durationSubmitForm = document.getElementById('durationSelector');
+
+			var submitForms = [keywordSubmitForm,dateSubmitForm,timeSubmitForm,durationSubmitForm];
+
+			for (f=0;f<submitForms.length;f++) {
+				submitForms[f].addEventListener('submit',submitHandler);
+			}
+		}
+
+		attachHandlers();
+	
+	</script>
+
+</body>
+
+</html>
